@@ -63,6 +63,7 @@ var Radio = {
 	gsDefl: props.globals.getNode("/instrumentation/nav[0]/gs-needle-deflection-norm", 1),
 	gsDeflTemp: 0,
 	inRange: props.globals.getNode("/instrumentation/nav[0]/in-range", 1),
+	isLoc: props.globals.getNode("/instrumentation/nav[0]/nav-loc", 1),
 	locDefl: props.globals.getNode("/instrumentation/nav[0]/heading-needle-deflection-norm", 1),
 	locDeflTemp: 0,
 	signalQuality: props.globals.getNode("/instrumentation/nav[0]/signal-quality-norm", 1),
@@ -138,6 +139,7 @@ var Internal = {
 	lnavAdvanceNm: props.globals.initNode("/it-autoflight/internal/lnav-advance-nm", 0, "DOUBLE"),
 	minVs: props.globals.initNode("/it-autoflight/internal/min-vs", -500, "INT"),
 	maxVs: props.globals.initNode("/it-autoflight/internal/max-vs", 500, "INT"),
+	navCourseHeadingErrorDeg: props.globals.initNode("/it-autoflight/internal/nav-course-heading-error-deg", 0, "DOUBLE"),
 	navHeadingErrorDeg: props.globals.initNode("/it-autoflight/internal/nav-heading-error-deg", 0, "DOUBLE"),
 	navHeadingErrorDegTemp: 0,
 	vs: props.globals.initNode("/it-autoflight/internal/vert-speed-fpm", 0, "DOUBLE"),
@@ -607,7 +609,6 @@ var ITAF = {
 			Custom.showHdg.setBoolValue(0);
 			me.updateLatText("ALIGN");
 		} else if (n == 5) { # RWY
-			me.updateLnavArm(0);
 			me.updateLocArm(0);
 			me.updateGsArm(0);
 			Output.lat.setValue(5);

@@ -15,6 +15,8 @@ var thr = nil;
 var trk = nil;
 var vert = nil;
 var vertText = nil;
+var groundStartTime = nil;
+var ground30Secs = 0;
 
 
 var Modes = {
@@ -97,6 +99,66 @@ var throttleModeCallback = func(modeNode, timerNode) {
 	}
 }
 
+var updateGroundTimer = func() {
+	var onGround =
+		pts.Gear.wow[1].getBoolValue() or
+		pts.Gear.wow[2].getBoolValue();
+
+	if (onGround) {
+		if (groundStartTime == nil) {
+			groundStartTime = pts.Sim.Time.elapsedSec.getValue();
+		}
+
+		ground30Secs =
+			pts.Sim.Time.elapsedSec.getValue() - groundStartTime >= 30;
+	} else {
+		groundStartTime = nil;
+		ground30Secs = 0;
+	}
+}
+
+var canEngageRwy = func() {
+	var departureRwy =
+		flightPlanController.flightplans[2].departure_runway;
+
+	if (departureRwy == nil or
+		departureRwy.ils_frequency_mhz == nil) {
+		return 0;
+	}
+
+	var runwayCourse = geo.normdeg(
+		departureRwy.heading -
+		pts.Environment.magVar.getValue()
+	);
+
+	var selectedCourse =
+		pts.Instrumentation.Nav.Radials.selectedDeg[0].getValue();
+
+	var selectedFrequency =
+		pts.Instrumentation.Nav.Frequencies.selectedMhz[0].getValue();
+
+	var courseMismatch = abs(
+		geo.normdeg180(selectedCourse - runwayCourse)
+	);
+
+	var frequencyMismatch = abs(
+		selectedFrequency - departureRwy.ils_frequency_mhz
+	);
+
+	return
+		FMGCInternal.v2set and
+		ground30Secs and
+		pts.Fdm.JSBSim.Fcs.slatDeg.getValue() > 0 and
+		Radio.isLoc.getBoolValue() and
+		Radio.inRange.getBoolValue() and
+		Radio.signalQuality.getValue() >= 0.99 and
+		abs(Radio.locDefl.getValue()) <= 0.25 and
+		abs(Internal.navCourseHeadingErrorDeg.getValue()) <= 20 and
+		courseMismatch <= 1 and
+		frequencyMismatch <= 0.01 and
+		Output.lat.getValue() == 9;
+}
+
 var fma_init = func() {
 	Internal.alt.setValue(10000);
 	setFmaText("apMode", " ", genericCallback, "apModeTime");
@@ -134,6 +196,7 @@ var fma_init = func() {
 
 # Master Thrust
 var loopFMA = maketimer(0.05, func() {
+	updateGroundTimer();
 	state1 = systems.FADEC.detentText[0].getValue();
 	state2 = systems.FADEC.detentText[1].getValue();
 	engout = systems.FADEC.engOut.getValue();
@@ -189,16 +252,19 @@ var loopFMA = maketimer(0.05, func() {
 		engstate1 = pts.Engines.Engine.state[0].getValue();
 		engstate2 = pts.Engines.Engine.state[1].getValue();
 		if (((state1 == "TOGA" or state2 == "TOGA") or (flx == 1 and (state1 == "MCT" or state2 == "MCT")) or (flx == 1 and ((state1 == "MAN THR" and systems.FADEC.manThrAboveMct[0]) or (state2 == "MAN THR" and systems.FADEC.manThrAboveMct[1])))) and (engstate1 == 3 or engstate2 == 3)) {
-			# RWY Engagement would go here, but automatic ILS selection is not simulated yet.
+			if (canEngageRwy()) {
+				ITAF.setLatMode(5);
+			}
 			if (FMGCInternal.v2set and Output.vert.getValue() != 7) {
 				ITAF.setVertMode(7);
 				ITAF.updateVertText("T/O CLB");
 			}
 		} else {
-			if (Input.lat.getValue() == 5) {
+			if (Output.lat.getValue() == 5) {
 				ITAF.setLatMode(9);
+				ITAF.setLatArm(Input.lat.getValue());
 			}
-			if (Input.vert.getValue() == 7) {
+			if (Output.vert.getValue() == 7) {
 				ITAF.setVertMode(9);
 			}
 		}

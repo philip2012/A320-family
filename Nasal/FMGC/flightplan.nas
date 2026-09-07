@@ -938,7 +938,11 @@ var flightPlanController = {
 			fmgc.fuelCalculating.setValue(1);
 		}
 
-		if (n == 2) flightPlanController.changed.setBoolValue(1);
+		if (n == 2) {
+			me.changed.setBoolValue(
+				!me.changed.getBoolValue()
+			);
+		}
 
 		canvas_nd.A3XXRouteDriver.triggerSignal("fp-added");
 	},
